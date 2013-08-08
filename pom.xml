@@ -11,7 +11,7 @@
 
 	<groupId>com.belerweb</groupId>
 	<artifactId>weixin-mp-sdk</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.0-preview-1</version>
 
 	<name>weixin-mp-sdk</name>
 	<description>Weixin mp SDK</description>
