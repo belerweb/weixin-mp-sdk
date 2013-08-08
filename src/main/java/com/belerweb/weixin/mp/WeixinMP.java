@@ -37,6 +37,8 @@ public class WeixinMP {
       MP_URI + "/cgi-bin/modifygroup?t=ajax-friend-group&lang=zh_CN";
   private static final String MP_URI_PUTINTO_GROUP =
       MP_URI + "/cgi-bin/modifycontacts?action=modifycontacts&t=ajax-putinto-group";
+  private static final String MP_URI_SEND =
+      MP_URI + "/cgi-bin/singlesend?t=ajax-response&lang=zh_CN";
 
   private HttpClient httpClient;
   private String username;
@@ -190,6 +192,32 @@ public class WeixinMP {
     post.addParameter("token", token);
     post.addParameter("contacttype", groupId);
     post.addParameter("tofakeidlist", StringUtil.join(fakeIds, "|"));
+
+    try {
+      int status = httpClient.executeMethod(post);
+      if (status != 200) {
+        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
+      }
+      postCheck(post.getResponseBodyAsString());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void sendText(String fakeId, String content) {
+    PostMethod post = new PostMethod(MP_URI_SEND);
+    addCommonHeader(post);
+    addAjaxHeader(post);
+    addFormHeader(post);
+    post.addRequestHeader("Referer", MP_URI + "/cgi-bin/singlemsgpage?msgid=&source=&count&token="
+        + token + "&fromfakeid=" + fakeId);
+    post.addParameter("ajax", "1");
+    post.addParameter("token", token);
+    post.addParameter("error", "false");
+    post.addParameter("imgcode", "");
+    post.addParameter("tofakeid", fakeId);
+    post.addParameter("content", content);
+    post.addParameter("type", "1");
 
     try {
       int status = httpClient.executeMethod(post);

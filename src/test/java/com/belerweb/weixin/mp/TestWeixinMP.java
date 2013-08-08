@@ -58,4 +58,10 @@ public class TestWeixinMP {
     mp.putIntoGroup(fakeIds, "2");
   }
 
+  @Test
+  public void testSendText() {
+    WeixinMP mp = WeixinMP.init(username, password);
+    mp.sendText("2125943182", "消息来自客户端/酷😭");
+  }
+
 }
