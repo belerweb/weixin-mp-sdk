@@ -47,6 +47,8 @@ public class WeixinMP {
       MP_URI + "/cgi-bin/uploadmaterial?cgi=uploadmaterial&t=iframe-uploadfile&lang=zh_CN";
   private static final String MP_URI_MODIFY_FILE =
       MP_URI + "/cgi-bin/modifyfile?lang=zh_CN&t=ajax-response";
+  private static final String MP_URI_GET_MESSAGE =
+      MP_URI + "/cgi-bin/getmessage?cgi=getmessage&t=ajax-message&ajax=1";
 
   private HttpClient httpClient;
   private String username;
@@ -316,6 +318,37 @@ public class WeixinMP {
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+
+  public List<WeixinMessage> getMessage(Integer day, Integer count, Integer offset) {
+    List<WeixinMessage> result = new ArrayList<WeixinMessage>();
+    PostMethod post = new PostMethod(MP_URI_GET_MESSAGE);
+    addCommonHeader(post);
+    addAjaxHeader(post);
+    addFormHeader(post);
+    post.addRequestHeader("Referer", MP_URI
+        + "/cgi-bin/filemanagepage?t=wxm-file&lang=zh_CN&type=2&pagesize=10&pageidx=0&token="
+        + token);
+    post.addParameter("token", token);
+    post.addParameter("day", day == null ? "0" : day.toString());
+    post.addParameter("count", count == null ? "50" : count.toString());
+    post.addParameter("offset", offset == null ? "0" : offset.toString());
+
+    try {
+      int status = httpClient.executeMethod(post);
+      if (status != 200) {
+        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
+      }
+      String response = post.getResponseBodyAsString();
+      postCheck(response);
+      JSONArray messages = new JSONArray(response);
+      for (int i = 0; i < messages.length(); i++) {
+        result.add(new WeixinMessage(messages.getJSONObject(i)));
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return result;
   }
 
   private WeixinMP(String username, String password) {

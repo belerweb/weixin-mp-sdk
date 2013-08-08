@@ -100,8 +100,8 @@ public class TestWeixinMP {
   }
 
   @Test
-  public void testSendImage() {
+  public void testSendImage() throws Exception {
     WeixinMP mp = WeixinMP.init(username, password);
-    mp.sendImage("2125943182", image, "image/png");
+    mp.sendImage("2125943182", image, "image/jpeg");
   }
 }
