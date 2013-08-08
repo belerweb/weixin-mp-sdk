@@ -37,6 +37,7 @@ public class WeixinMP {
   private String username;
   private String password;
   private String token;
+  private long tokenTime;
 
   /**
    * 获取 Integer.MAX_VALUE 用户
@@ -149,6 +150,7 @@ public class WeixinMP {
       if (result.getInt("Ret") == 302) {
         String tokenUrl = result.getString("ErrMsg");
         token = tokenUrl.substring(tokenUrl.lastIndexOf("&") + 7);
+        tokenTime = System.currentTimeMillis();
       } else if (result.getInt("Ret") == 400) {
         if (result.getInt("ErrCode") == -3) {
           // 您输入的帐号或者密码不正确，请重新输入。
@@ -162,7 +164,7 @@ public class WeixinMP {
   }
 
   private void preCheck() {
-    if (token == null) {
+    if (token == null || (System.currentTimeMillis() - tokenTime) > 600000) {
       login();
     }
   }
