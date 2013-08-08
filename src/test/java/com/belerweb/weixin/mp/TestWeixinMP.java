@@ -1,5 +1,6 @@
 package com.belerweb.weixin.mp;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Test;
@@ -44,7 +45,17 @@ public class TestWeixinMP {
   @Test
   public void testDeleteGroup() {
     WeixinMP mp = WeixinMP.init(username, password);
-    mp.deleteGroup("100");;
+    mp.deleteGroup("100");
+  }
+
+  @Test
+  public void testPutIntoGroup() {
+    List<String> fakeIds = new ArrayList<String>();
+    fakeIds.add("25029755");
+    fakeIds.add("24771975");
+    fakeIds.add("2125943182");
+    WeixinMP mp = WeixinMP.init(username, password);
+    mp.putIntoGroup(fakeIds, "2");
   }
 
 }

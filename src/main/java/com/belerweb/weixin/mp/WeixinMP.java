@@ -15,6 +15,7 @@ import org.apache.commons.httpclient.params.HttpMethodParams;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
+import org.jsoup.helper.StringUtil;
 
 /**
  * 微信公众平台
@@ -34,6 +35,8 @@ public class WeixinMP {
       MP_URI + "/cgi-bin/getcontactinfo?t=ajax-getcontactinfo&lang=zh_CN";
   private static final String MP_URI_GROUP =
       MP_URI + "/cgi-bin/modifygroup?t=ajax-friend-group&lang=zh_CN";
+  private static final String MP_URI_PUTINTO_GROUP =
+      MP_URI + "/cgi-bin/modifycontacts?action=modifycontacts&t=ajax-putinto-group";
 
   private HttpClient httpClient;
   private String username;
@@ -165,6 +168,28 @@ public class WeixinMP {
     post.addParameter("token", token);
     post.addParameter("func", "del");
     post.addParameter("id", groupId);
+
+    try {
+      int status = httpClient.executeMethod(post);
+      if (status != 200) {
+        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
+      }
+      postCheck(post.getResponseBodyAsString());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void putIntoGroup(List<String> fakeIds, String groupId) {
+    PostMethod post = new PostMethod(MP_URI_PUTINTO_GROUP);
+    addCommonHeader(post);
+    addAjaxHeader(post);
+    addFormHeader(post);
+    post.addRequestHeader("Referer", MP_URI_USERS + "&pagesize=10&token=" + token);
+    post.addParameter("ajax", "1");
+    post.addParameter("token", token);
+    post.addParameter("contacttype", groupId);
+    post.addParameter("tofakeidlist", StringUtil.join(fakeIds, "|"));
 
     try {
       int status = httpClient.executeMethod(post);
