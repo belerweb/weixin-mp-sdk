@@ -6,12 +6,13 @@ import org.junit.Test;
 
 public class TestWeixinMP {
 
+  String username =
+      System.getProperty(WeixinMP.CONFIG_USERNAME, System.getenv(WeixinMP.CONFIG_USERNAME));
+  String password =
+      System.getProperty(WeixinMP.CONFIG_PASSWORD, System.getenv(WeixinMP.CONFIG_PASSWORD));
+
   @Test
   public void testGetUser() {
-    String username =
-        System.getProperty(WeixinMP.CONFIG_USERNAME, System.getenv(WeixinMP.CONFIG_USERNAME));
-    String password =
-        System.getProperty(WeixinMP.CONFIG_PASSWORD, System.getenv(WeixinMP.CONFIG_PASSWORD));
     WeixinMP mp = WeixinMP.init(username, password);
     List<WeixinUser> users = mp.getUsers();
     for (WeixinUser user : users) {
@@ -26,6 +27,24 @@ public class TestWeixinMP {
       System.out.println("Sex:" + user.getSex());
       System.out.println("=======================================");
     }
+  }
+
+  @Test
+  public void testAddGroup() {
+    WeixinMP mp = WeixinMP.init(username, password);
+    mp.addGroup("测试组");
+  }
+
+  @Test
+  public void testRenameGroup() {
+    WeixinMP mp = WeixinMP.init(username, password);
+    mp.renameGroup("100", "测试组-修改");
+  }
+
+  @Test
+  public void testDeleteGroup() {
+    WeixinMP mp = WeixinMP.init(username, password);
+    mp.deleteGroup("100");;
   }
 
 }

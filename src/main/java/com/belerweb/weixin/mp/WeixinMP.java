@@ -32,6 +32,8 @@ public class WeixinMP {
   private static final String MP_URI_INDEX = MP_URI + "/cgi-bin/indexpage?t=wxm-index&lang=zh_CN";
   private static final String MP_URI_INFO =
       MP_URI + "/cgi-bin/getcontactinfo?t=ajax-getcontactinfo&lang=zh_CN";
+  private static final String MP_URI_GROUP =
+      MP_URI + "/cgi-bin/modifygroup?t=ajax-friend-group&lang=zh_CN";
 
   private HttpClient httpClient;
   private String username;
@@ -87,8 +89,9 @@ public class WeixinMP {
   public WeixinUser getUser(String fakeId) {
     PostMethod post = new PostMethod(MP_URI_INFO + "&fakeid=" + fakeId);
     addCommonHeader(post);
+    addAjaxHeader(post);
+    addFormHeader(post);
     post.addRequestHeader("Referer", MP_URI_USERS + "&pagesize=10&token=" + token);
-    post.addRequestHeader("X-Requested-With", "XMLHttpRequest");
     post.addParameter("ajax", "1");
     post.addParameter("token", token);
 
@@ -105,6 +108,73 @@ public class WeixinMP {
     }
 
     return null;
+  }
+
+  /**
+   * 增加分组
+   */
+  public String addGroup(String groupName) {
+    return editGroup("add", null, groupName);
+  }
+
+  /**
+   * 分组重命名
+   */
+  public String renameGroup(String groupId, String groupName) {
+    return editGroup("rename", groupId, groupName);
+  }
+
+  private String editGroup(String action, String groupId, String groupName) {
+    PostMethod post = new PostMethod(MP_URI_GROUP);
+    addCommonHeader(post);
+    addAjaxHeader(post);
+    addFormHeader(post);
+    post.addRequestHeader("Referer", MP_URI_USERS + "&pagesize=10&token=" + token);
+    post.addParameter("ajax", "1");
+    post.addParameter("token", token);
+    post.addParameter("func", action);
+    post.addParameter("name", groupName);
+    if (groupId != null) {
+      post.addParameter("id", groupId);
+    }
+
+    try {
+      int status = httpClient.executeMethod(post);
+      if (status != 200) {
+        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
+      }
+      String response = post.getResponseBodyAsString();
+      postCheck(response);
+      return new JSONObject(response).getString("GroupId");
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+
+  /**
+   * 删除分组
+   */
+  public void deleteGroup(String groupId) {
+    PostMethod post = new PostMethod(MP_URI_GROUP);
+    addCommonHeader(post);
+    addAjaxHeader(post);
+    addFormHeader(post);
+    post.addRequestHeader("Referer", MP_URI_USERS + "&pagesize=10&token=" + token);
+    post.addParameter("ajax", "1");
+    post.addParameter("token", token);
+    post.addParameter("func", "del");
+    post.addParameter("id", groupId);
+
+    try {
+      int status = httpClient.executeMethod(post);
+      if (status != 200) {
+        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
+      }
+      postCheck(post.getResponseBodyAsString());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   private WeixinMP(String username, String password) {
@@ -132,9 +202,10 @@ public class WeixinMP {
 
     PostMethod post = new PostMethod(MP_URI_LOGIN);
     addCommonHeader(post);
+    addAjaxHeader(post);
+    addFormHeader(post);
     post.addRequestHeader("Referer", MP_URI);
     post.addRequestHeader("Accept", "application/json, text/javascript, */*; q=0.01");
-    post.addRequestHeader("X-Requested-With", "XMLHttpRequest");
     post.addParameter("username", username);
     post.addParameter("pwd", DigestUtils.md5Hex(password));
     post.addParameter("imgcode", "");
@@ -179,6 +250,14 @@ public class WeixinMP {
   private void addCommonHeader(HttpMethod request) {
     request.addRequestHeader("Accept-Language", "zh-cn;q=0.5");
     // request.addRequestHeader("Accept-Encoding", "gzip, deflate");
+  }
+
+  private void addAjaxHeader(HttpMethod request) {
+    request.addRequestHeader("X-Requested-With", "XMLHttpRequest");
+  }
+
+  private void addFormHeader(HttpMethod request) {
+    request.addRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
   }
 
   public static WeixinMP init(String username, String password) {
