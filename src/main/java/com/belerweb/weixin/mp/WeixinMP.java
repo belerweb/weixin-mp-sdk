@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.httpclient.HttpClient;
@@ -11,6 +13,8 @@ import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.httpclient.methods.multipart.MultipartRequestEntity;
+import org.apache.commons.httpclient.methods.multipart.Part;
 import org.apache.commons.httpclient.params.HttpMethodParams;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -39,6 +43,10 @@ public class WeixinMP {
       MP_URI + "/cgi-bin/modifycontacts?action=modifycontacts&t=ajax-putinto-group";
   private static final String MP_URI_SEND =
       MP_URI + "/cgi-bin/singlesend?t=ajax-response&lang=zh_CN";
+  private static final String MP_URI_UPLOAD =
+      MP_URI + "/cgi-bin/uploadmaterial?cgi=uploadmaterial&t=iframe-uploadfile&lang=zh_CN";
+  private static final String MP_URI_MODIFY_FILE =
+      MP_URI + "/cgi-bin/modifyfile?lang=zh_CN&t=ajax-response";
 
   private HttpClient httpClient;
   private String username;
@@ -218,6 +226,86 @@ public class WeixinMP {
     post.addParameter("tofakeid", fakeId);
     post.addParameter("content", content);
     post.addParameter("type", "1");
+
+    try {
+      int status = httpClient.executeMethod(post);
+      if (status != 200) {
+        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
+      }
+      postCheck(post.getResponseBodyAsString());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void sendImage(String fakeId, byte[] image, String type) {
+    String fileid = uploadImage(image, type);
+    PostMethod post = new PostMethod(MP_URI_SEND);
+    addCommonHeader(post);
+    addAjaxHeader(post);
+    addFormHeader(post);
+    post.addRequestHeader("Referer", MP_URI + "/cgi-bin/singlemsgpage?msgid=&source=&count&token="
+        + token + "&fromfakeid=" + fakeId);
+    post.addParameter("ajax", "1");
+    post.addParameter("token", token);
+    post.addParameter("error", "false");
+    post.addParameter("imgcode", "");
+    post.addParameter("tofakeid", fakeId);
+    post.addParameter("type", "2");
+    post.addParameter("fid", fileid);
+    post.addParameter("fileid", fileid);
+
+    try {
+      int status = httpClient.executeMethod(post);
+      if (status != 200) {
+        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
+      }
+      postCheck(post.getResponseBodyAsString());
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    deleteFile(fileid);
+  }
+
+  public String uploadImage(byte[] image, String type) {
+    String formId = "file_from_" + System.currentTimeMillis();
+    PostMethod post =
+        new PostMethod(MP_URI_UPLOAD + "&type=2&token=" + token + "&formId=" + formId);
+    addCommonHeader(post);
+    post.addRequestHeader("Referer", MP_URI
+        + "/cgi-bin/indexpage?lang=zh_CN&t=wxm-upload&type=2&token=" + token + "&formId=" + formId);
+    try {
+      Part[] parts = new Part[] {new ByteArrayPart(image, "uploadfile", type)};
+      MultipartRequestEntity entry = new MultipartRequestEntity(parts, post.getParams());
+      post.setRequestEntity(entry);
+
+      int status = httpClient.executeMethod(post);
+      String response = post.getResponseBodyAsString();
+      if (status != 200) {
+        throw new RuntimeException("Status:" + status + "\n" + response);
+      }
+      postCheck(response);
+      Matcher matcher = Pattern.compile("'(\\d+)'").matcher(response);
+      matcher.find();
+      return matcher.group(1);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+
+  public void deleteFile(String fileid) {
+    PostMethod post = new PostMethod(MP_URI_MODIFY_FILE + "&oper=del");
+    addCommonHeader(post);
+    addAjaxHeader(post);
+    addFormHeader(post);
+    post.addRequestHeader("Referer", MP_URI
+        + "/cgi-bin/filemanagepage?t=wxm-file&lang=zh_CN&type=2&pagesize=10&pageidx=0&token="
+        + token);
+    post.addParameter("ajax", "1");
+    post.addParameter("token", token);
+    post.addParameter("fileid", fileid);
 
     try {
       int status = httpClient.executeMethod(post);
