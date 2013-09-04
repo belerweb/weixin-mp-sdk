@@ -36,6 +36,16 @@ public class TestWeixinMP {
       System.getProperty(WeixinMP.CONFIG_PASSWORD, System.getenv(WeixinMP.CONFIG_PASSWORD));
 
   @Test
+  public void testGetAccessToken() throws MpException {
+    WeixinMP mp = WeixinMP.init(username, password);
+    String appid = System.getProperty("appid");
+    String secret = System.getProperty("secret");
+    AccessToken accessToken = mp.getAccessToken(appid, secret);
+    System.out.println("Token:" + accessToken.getToken());
+    System.out.println("Valid:" + accessToken.isValid());
+  }
+
+  @Test
   public void testGetUser() {
     WeixinMP mp = WeixinMP.init(username, password);
     List<WeixinUser> users = mp.getUsers();

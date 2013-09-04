@@ -1,5 +1,6 @@
 package com.belerweb.weixin.mp;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,7 +10,10 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.HttpException;
 import org.apache.commons.httpclient.HttpMethod;
+import org.apache.commons.httpclient.HttpStatus;
+import org.apache.commons.httpclient.NameValuePair;
 import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
@@ -17,6 +21,7 @@ import org.apache.commons.httpclient.methods.multipart.MultipartRequestEntity;
 import org.apache.commons.httpclient.methods.multipart.Part;
 import org.apache.commons.httpclient.params.HttpMethodParams;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.helper.StringUtil;
@@ -31,6 +36,7 @@ public class WeixinMP {
 
   private static final Map<String, WeixinMP> MP = new HashMap<String, WeixinMP>();
   private static final String MP_URI = "https://mp.weixin.qq.com";
+  private static final String MP_URI_TOKEN = "https://api.weixin.qq.com/cgi-bin/token";
   private static final String MP_URI_LOGIN = MP_URI + "/cgi-bin/login?lang=zh_CN";
   private static final String MP_URI_USERS =
       MP_URI + "/cgi-bin/contactmanagepage?t=wxm-friend&lang=zh_CN&pageidx=0&type=0&groupid=0";
@@ -55,6 +61,49 @@ public class WeixinMP {
   private String password;
   private String token;
   private long tokenTime;
+
+  /**
+   * 获取凭证
+   */
+  public AccessToken getAccessToken(String appid, String secret) throws MpException {
+    return getAccessToken("client_credential", appid, secret);
+  }
+
+  /**
+   * 获取凭证
+   */
+  public AccessToken getAccessToken(String grantType, String appid, String secret)
+      throws MpException {
+    GetMethod request = new GetMethod(MP_URI_TOKEN);
+    NameValuePair[] params = new NameValuePair[3];
+    params[0] = new NameValuePair("grant_type", grantType);
+    params[1] = new NameValuePair("appid", appid);
+    params[2] = new NameValuePair("secret", secret);
+    request.setQueryString(params);
+    return new AccessToken(toJsonObject(execute(request)));
+  }
+
+  private String execute(HttpMethod request) throws MpException {
+    try {
+      int status = httpClient.executeMethod(request);
+      if (status != HttpStatus.SC_OK) {
+        throw new MpException(MpException.DEFAULT_CODE, String.valueOf(status));
+      }
+      return request.getResponseBodyAsString();
+    } catch (HttpException e) {
+      throw new MpException(e);
+    } catch (IOException e) {
+      throw new MpException(e);
+    }
+  }
+
+  private JSONObject toJsonObject(String json) throws MpException {
+    try {
+      return new JSONObject(json);
+    } catch (JSONException e) {
+      throw new MpException(e);
+    }
+  }
 
   /**
    * 获取 Integer.MAX_VALUE 用户
