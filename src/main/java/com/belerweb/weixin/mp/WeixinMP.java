@@ -37,13 +37,11 @@ public class WeixinMP {
   public static final int GROUP_BLACKLIST = 1;// 黑名单
   public static final int GROUP_ASTERISK = 2;// 星标组
 
+  public static final String IMAGE_JPG = "image/jpeg";
+  public static final String IMAGE_PNG = "image/png";
+  public static final String IMAGE_GIF = "image/gif";
+
   private static final Map<String, WeixinMP> MP = new HashMap<String, WeixinMP>();
-  private static final String MP_URI = "https://mp.weixin.qq.com";
-  private static final String MP_URI_TOKEN = "https://api.weixin.qq.com/cgi-bin/token";
-  private static final String MP_URI_UPLOAD =
-      MP_URI + "/cgi-bin/uploadmaterial?cgi=uploadmaterial&t=iframe-uploadfile&lang=zh_CN";
-  private static final String MP_URI_MODIFY_FILE =
-      MP_URI + "/cgi-bin/modifyfile?lang=zh_CN&t=ajax-response";
 
   private HttpClient httpClient;
   private String username;
@@ -74,7 +72,7 @@ public class WeixinMP {
    */
   public AccessToken getAccessToken(String grantType, String appid, String secret)
       throws MpException {
-    GetMethod request = new GetMethod(MP_URI_TOKEN);
+    GetMethod request = new GetMethod("https://api.weixin.qq.com/cgi-bin/token");
     NameValuePair[] params = new NameValuePair[3];
     params[0] = new NameValuePair("grant_type", grantType);
     params[1] = new NameValuePair("appid", appid);
@@ -309,7 +307,7 @@ public class WeixinMP {
    */
   public boolean sendImage(String fakeId, String type, byte[] imageData) throws MpException {
     checkToken();
-    String fileid = uploadImage(imageData, type);
+    int fileid = uploadImage(type, imageData);
     String url = "https://mp.weixin.qq.com/cgi-bin/singlesend";
     PostMethod request = new PostMethod(url);
     request.addRequestHeader("Referer", "https://mp.weixin.qq.com/cgi-bin/singlemsgpage");
@@ -321,18 +319,67 @@ public class WeixinMP {
     request.addParameter("ajax", "1");
     request.addParameter("type", "2");// 图片
     request.addParameter("tofakeid", fakeId);
-    request.addParameter("fid", fileid);
-    request.addParameter("fileid", fileid);
+    request.addParameter("fid", String.valueOf(fileid));
+    request.addParameter("fileid", String.valueOf(fileid));
     boolean result = toJsonObject(execute(request)).optInt("ret", -1) == 0;
     deleteFile(fileid);
     return result;
   }
 
+  /**
+   * 上传图片
+   */
+  private int uploadImage(String type, byte[] image) throws MpException {
+    checkToken();
+    String url = "https://mp.weixin.qq.com/cgi-bin/uploadmaterial";
+    url = url + "?token=" + token;
+    url = url + "&lang=zh_CN";
+    url = url + "&t=iframe-uploadfile";
+    url = url + "&cgi=uploadmaterial";
+    url = url + "&type=0";
+    url = url + "&formId=";// "file_from_" + System.currentTimeMillis()
+    PostMethod request = new PostMethod(url);
+    request.addRequestHeader("Referer", "https://mp.weixin.qq.com/cgi-bin/indexpage");
+    try {
+      Part[] parts = new Part[] {new ByteArrayPart(image, "uploadfile", type)};
+      MultipartRequestEntity entry = new MultipartRequestEntity(parts, request.getParams());
+      request.setRequestEntity(entry);
+      String html = execute(request, false);
+      Matcher matcher = Pattern.compile("'(\\d+)'").matcher(html);
+      if (html.contains("上传成功") && matcher.find()) {
+        return Integer.parseInt(matcher.group(1));
+      }
+    } catch (IOException e) {
+      throw new MpException(e);
+    }
+
+    throw new MpException("上传失败");
+  }
+
+  /**
+   * 删除素材文件
+   */
+  private boolean deleteFile(int fileid) throws MpException {
+    String url = "https://mp.weixin.qq.com/cgi-bin/modifyfile";
+    PostMethod request = new PostMethod(url);
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-response");
+    request.addParameter("ajax", "1");
+    request.addParameter("oper", "del");
+    request.addParameter("fileid", String.valueOf(fileid));
+    return toJsonObject(execute(request)).optInt("ret", -1) == 0;
+  }
+
   private String execute(HttpMethod request) throws MpException {
+    return execute(request, true);
+  }
+
+  private String execute(HttpMethod request, boolean form) throws MpException {
     request.addRequestHeader("Pragma", "no-cache");
     request.addRequestHeader("User-Agent",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:23.0) Gecko/20100101 Firefox/23.0");
-    if (request instanceof PostMethod) {
+    if (form && request instanceof PostMethod) {
       request.addRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
     }
     if (request.getRequestHeader("Referer") == null) {
@@ -358,76 +405,6 @@ public class WeixinMP {
     } catch (JSONException e) {
       throw new MpException(e);
     }
-  }
-
-  public String uploadImage(byte[] image, String type) {
-    String formId = "file_from_" + System.currentTimeMillis();
-    PostMethod post =
-        new PostMethod(MP_URI_UPLOAD + "&type=2&token=" + token + "&formId=" + formId);
-    addCommonHeader(post);
-    post.addRequestHeader("Referer", MP_URI
-        + "/cgi-bin/indexpage?lang=zh_CN&t=wxm-upload&type=2&token=" + token + "&formId=" + formId);
-    try {
-      Part[] parts = new Part[] {new ByteArrayPart(image, "uploadfile", type)};
-      MultipartRequestEntity entry = new MultipartRequestEntity(parts, post.getParams());
-      post.setRequestEntity(entry);
-
-      int status = httpClient.executeMethod(post);
-      String response = post.getResponseBodyAsString();
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + response);
-      }
-      postCheck(response);
-      Matcher matcher = Pattern.compile("'(\\d+)'").matcher(response);
-      matcher.find();
-      return matcher.group(1);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
-  }
-
-  public void deleteFile(String fileid) {
-    PostMethod post = new PostMethod(MP_URI_MODIFY_FILE + "&oper=del");
-    addCommonHeader(post);
-    addAjaxHeader(post);
-    addFormHeader(post);
-    post.addRequestHeader("Referer", MP_URI
-        + "/cgi-bin/filemanagepage?t=wxm-file&lang=zh_CN&type=2&pagesize=10&pageidx=0&token="
-        + token);
-    post.addParameter("ajax", "1");
-    post.addParameter("token", token);
-    post.addParameter("fileid", fileid);
-
-    try {
-      int status = httpClient.executeMethod(post);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
-      }
-      postCheck(post.getResponseBodyAsString());
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-  }
-
-  private void postCheck(String response) {
-    if (response.contains("登录超时") || response.contains("\"ret\":\"-20000\"")) {
-      token = null;
-      throw new RuntimeException("登录超时");
-    }
-  }
-
-  private void addCommonHeader(HttpMethod request) {
-    request.addRequestHeader("Acnguage", "zh-cn;q=0.5");
-    // request.addRequestHeader("Accept-Encoding", "gzip, deflate");
-  }
-
-  private void addAjaxHeader(HttpMethod request) {
-    request.addRequestHeader("X-Requested-With", "XMLHttpRequest");
-  }
-
-  private void addFormHeader(HttpMethod request) {
-    request.addRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
   }
 
 }
