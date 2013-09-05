@@ -40,8 +40,6 @@ public class WeixinMP {
   private static final Map<String, WeixinMP> MP = new HashMap<String, WeixinMP>();
   private static final String MP_URI = "https://mp.weixin.qq.com";
   private static final String MP_URI_TOKEN = "https://api.weixin.qq.com/cgi-bin/token";
-  private static final String MP_URI_SEND =
-      MP_URI + "/cgi-bin/singlesend?t=ajax-response&lang=zh_CN";
   private static final String MP_URI_UPLOAD =
       MP_URI + "/cgi-bin/uploadmaterial?cgi=uploadmaterial&t=iframe-uploadfile&lang=zh_CN";
   private static final String MP_URI_MODIFY_FILE =
@@ -228,6 +226,7 @@ public class WeixinMP {
    * 将用户放入某个组内
    */
   public boolean putIntoGroup(List<String> fakeIds, int groupId) throws MpException {
+    checkToken();
     String url = "https://mp.weixin.qq.com/cgi-bin/modifycontacts";
     PostMethod request = new PostMethod(url);
     request.addParameter("token", token);
@@ -243,9 +242,9 @@ public class WeixinMP {
    * 增加分组
    */
   public boolean addGroup(String name) throws MpException {
+    checkToken();
     String url = "https://mp.weixin.qq.com/cgi-bin/modifygroup";
     PostMethod request = new PostMethod(url);
-    request.addRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
     request.addParameter("token", token);
     request.addParameter("lang", "zh_CN");
     request.addParameter("t", "ajax-friend-group");
@@ -258,9 +257,9 @@ public class WeixinMP {
    * 修改组名
    */
   public boolean renameGroup(int groupId, String name) throws MpException {
+    checkToken();
     String url = "https://mp.weixin.qq.com/cgi-bin/modifygroup";
     PostMethod request = new PostMethod(url);
-    request.addRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
     request.addParameter("token", token);
     request.addParameter("lang", "zh_CN");
     request.addParameter("t", "ajax-friend-group");
@@ -274,6 +273,7 @@ public class WeixinMP {
    * 删除分组
    */
   public boolean deleteGroup(int groupId) throws MpException {
+    checkToken();
     String url = "https://mp.weixin.qq.com/cgi-bin/modifygroup";
     PostMethod request = new PostMethod(url);
     request.addParameter("token", token);
@@ -284,11 +284,61 @@ public class WeixinMP {
     return toJsonObject(execute(request)).optString("GroupId", null) != null;
   }
 
+  /**
+   * 发送文字消息
+   */
+  public boolean sendText(String fakeId, String content) throws MpException {
+    checkToken();
+    String url = "https://mp.weixin.qq.com/cgi-bin/singlesend";
+    PostMethod request = new PostMethod(url);
+    request.addRequestHeader("Referer", "https://mp.weixin.qq.com/cgi-bin/singlemsgpage");
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-response");
+    request.addParameter("error", "false");
+    request.addParameter("imgcode", "");
+    request.addParameter("ajax", "1");
+    request.addParameter("type", "1");// 文字
+    request.addParameter("tofakeid", fakeId);
+    request.addParameter("content", content);
+    return toJsonObject(execute(request)).optInt("ret", -1) == 0;
+  }
+
+  /**
+   * 发送图片消息
+   */
+  public boolean sendImage(String fakeId, String type, byte[] imageData) throws MpException {
+    checkToken();
+    String fileid = uploadImage(imageData, type);
+    String url = "https://mp.weixin.qq.com/cgi-bin/singlesend";
+    PostMethod request = new PostMethod(url);
+    request.addRequestHeader("Referer", "https://mp.weixin.qq.com/cgi-bin/singlemsgpage");
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-response");
+    request.addParameter("error", "false");
+    request.addParameter("imgcode", "");
+    request.addParameter("ajax", "1");
+    request.addParameter("type", "2");// 图片
+    request.addParameter("tofakeid", fakeId);
+    request.addParameter("fid", fileid);
+    request.addParameter("fileid", fileid);
+    boolean result = toJsonObject(execute(request)).optInt("ret", -1) == 0;
+    deleteFile(fileid);
+    return result;
+  }
+
   private String execute(HttpMethod request) throws MpException {
     request.addRequestHeader("Pragma", "no-cache");
-    request.addRequestHeader("Referer", "https://mp.weixin.qq.com/");
     request.addRequestHeader("User-Agent",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:23.0) Gecko/20100101 Firefox/23.0");
+    if (request instanceof PostMethod) {
+      request.addRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+    }
+    if (request.getRequestHeader("Referer") == null) {
+      request.addRequestHeader("Referer", "https://mp.weixin.qq.com/");
+    }
+
     try {
       int status = httpClient.executeMethod(request);
       if (status != HttpStatus.SC_OK) {
@@ -308,62 +358,6 @@ public class WeixinMP {
     } catch (JSONException e) {
       throw new MpException(e);
     }
-  }
-
-  public void sendText(String fakeId, String content) {
-    PostMethod post = new PostMethod(MP_URI_SEND);
-    addCommonHeader(post);
-    addAjaxHeader(post);
-    addFormHeader(post);
-    post.addRequestHeader("Referer", MP_URI + "/cgi-bin/singlemsgpage?msgid=&source=&count&token="
-        + token + "&fromfakeid=" + fakeId);
-    post.addParameter("ajax", "1");
-    post.addParameter("token", token);
-    post.addParameter("error", "false");
-    post.addParameter("imgcode", "");
-    post.addParameter("tofakeid", fakeId);
-    post.addParameter("content", content);
-    post.addParameter("type", "1");
-
-    try {
-      int status = httpClient.executeMethod(post);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
-      }
-      postCheck(post.getResponseBodyAsString());
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-  }
-
-  public void sendImage(String fakeId, byte[] image, String type) {
-    String fileid = uploadImage(image, type);
-    PostMethod post = new PostMethod(MP_URI_SEND);
-    addCommonHeader(post);
-    addAjaxHeader(post);
-    addFormHeader(post);
-    post.addRequestHeader("Referer", MP_URI + "/cgi-bin/singlemsgpage?msgid=&source=&count&token="
-        + token + "&fromfakeid=" + fakeId);
-    post.addParameter("ajax", "1");
-    post.addParameter("token", token);
-    post.addParameter("error", "false");
-    post.addParameter("imgcode", "");
-    post.addParameter("tofakeid", fakeId);
-    post.addParameter("type", "2");
-    post.addParameter("fid", fileid);
-    post.addParameter("fileid", fileid);
-
-    try {
-      int status = httpClient.executeMethod(post);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
-      }
-      postCheck(post.getResponseBodyAsString());
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-
-    deleteFile(fileid);
   }
 
   public String uploadImage(byte[] image, String type) {
