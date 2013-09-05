@@ -2,6 +2,7 @@ package com.belerweb.weixin.mp;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,6 @@ import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.multipart.MultipartRequestEntity;
 import org.apache.commons.httpclient.methods.multipart.Part;
-import org.apache.commons.httpclient.params.HttpMethodParams;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -37,7 +37,6 @@ public class WeixinMP {
   private static final Map<String, WeixinMP> MP = new HashMap<String, WeixinMP>();
   private static final String MP_URI = "https://mp.weixin.qq.com";
   private static final String MP_URI_TOKEN = "https://api.weixin.qq.com/cgi-bin/token";
-  private static final String MP_URI_LOGIN = MP_URI + "/cgi-bin/login?lang=zh_CN";
   private static final String MP_URI_USERS =
       MP_URI + "/cgi-bin/contactmanagepage?t=wxm-friend&lang=zh_CN&pageidx=0&type=0&groupid=0";
   private static final String MP_URI_INDEX = MP_URI + "/cgi-bin/indexpage?t=wxm-index&lang=zh_CN";
@@ -53,14 +52,23 @@ public class WeixinMP {
       MP_URI + "/cgi-bin/uploadmaterial?cgi=uploadmaterial&t=iframe-uploadfile&lang=zh_CN";
   private static final String MP_URI_MODIFY_FILE =
       MP_URI + "/cgi-bin/modifyfile?lang=zh_CN&t=ajax-response";
-  private static final String MP_URI_GET_MESSAGE =
-      MP_URI + "/cgi-bin/getmessage?cgi=getmessage&t=ajax-message&ajax=1";
 
   private HttpClient httpClient;
   private String username;
   private String password;
   private String token;
   private long tokenTime;
+
+  /**
+   * 私有构造函数，请通过init方法获取实例
+   */
+  private WeixinMP(String username, String password) {
+    this.username = username;
+    this.password = password;
+    httpClient = new HttpClient();
+    httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
+    httpClient.getParams().setParameter("http.protocol.single-cookie-header", true);
+  }
 
   /**
    * 获取凭证
@@ -83,7 +91,95 @@ public class WeixinMP {
     return new AccessToken(toJsonObject(execute(request)));
   }
 
+  /**
+   * 微信公众平台初始化
+   */
+  public static WeixinMP init(String username, String password) throws MpException {
+    if (!MP.containsKey(username)) {
+      WeixinMP mp = new WeixinMP(username, password);
+      mp.login();
+      MP.put(username, mp);
+    }
+
+    return MP.get(username);
+  }
+
+  /**
+   * 登录
+   */
+  private void login() throws MpException {
+    PostMethod request = new PostMethod("https://mp.weixin.qq.com/cgi-bin/login");
+    request.addParameter("X-Requested-With", "XMLHttpRequest");
+    request.addParameter(new NameValuePair("lang", "zh_CN"));
+    request.addParameter(new NameValuePair("f", "json"));
+    request.addParameter(new NameValuePair("imgcode", ""));
+    request.addParameter(new NameValuePair("username", username));
+    request.addParameter(new NameValuePair("pwd", DigestUtils.md5Hex(password)));
+
+    /**
+     * 正确结果示例:
+     * 
+     * { "Ret": 302, "ErrMsg": "/cgi-bin/home?t=home/index&lang=zh_CN&token=1234567890",
+     * "ShowVerifyCode": 0, "ErrCode": 0 }
+     * 
+     * 错误结果示例:
+     * 
+     * { "Ret": 400, "ErrMsg": "", "ShowVerifyCode": 0, "ErrCode": -3 } // 密码错误
+     * 
+     * { "Ret": 400, "ErrMsg": "", "ShowVerifyCode": 0, "ErrCode": -2 } // HTTP错误
+     */
+    try {
+      JSONObject result = new JSONObject(execute(request));
+      if (result.getInt("Ret") == 302) {
+        Matcher matcher = Pattern.compile("token=(\\d+)").matcher(result.getString("ErrMsg"));
+        if (matcher.find()) {
+          token = matcher.group(1);
+          tokenTime = new Date().getTime();
+        }
+      }
+    } catch (JSONException e) {
+      throw new MpException(e);
+    }
+  }
+
+  /**
+   * 实时消息：全部消息
+   * 
+   * @return
+   */
+  public List<WeixinMessage> getMessage(int offset, int count) throws MpException {
+    String url = "https://mp.weixin.qq.com/cgi-bin/message";
+    GetMethod request = new GetMethod(url);
+    NameValuePair[] params = new NameValuePair[5];
+    params[0] = new NameValuePair("token", token);// 必须
+    params[1] = new NameValuePair("lang", "zh_CN");// 必须
+    params[2] = new NameValuePair("day", "7");// 全部消息
+    params[3] = new NameValuePair("offset", String.valueOf(offset));
+    params[4] = new NameValuePair("count", String.valueOf(count));
+    request.setQueryString(params);
+    List<WeixinMessage> messages = new ArrayList<WeixinMessage>();
+    for (String line : execute(request).split("[\r\n]+")) {
+      line = line.trim();
+      if (line.startsWith("list : ({\"msg_item\":") && line.endsWith("}).msg_item")) {
+        try {
+          JSONArray array = new JSONArray(line.substring(20, line.length() - 11));
+          for (int i = 0; i < array.length(); i++) {
+            messages.add(new WeixinMessage(array.getJSONObject(i)));
+          }
+        } catch (JSONException e) {
+          throw new MpException(e);
+        }
+        break;
+      }
+    }
+    return messages;
+  }
+
   private String execute(HttpMethod request) throws MpException {
+    request.addRequestHeader("Pragma", "no-cache");
+    request.addRequestHeader("Referer", "https://mp.weixin.qq.com/");
+    request.addRequestHeader("User-Agent",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:23.0) Gecko/20100101 Firefox/23.0");
     try {
       int status = httpClient.executeMethod(request);
       if (status != HttpStatus.SC_OK) {
@@ -107,15 +203,19 @@ public class WeixinMP {
 
   /**
    * 获取 Integer.MAX_VALUE 用户
+   * 
+   * @throws MpException
    */
-  public List<WeixinUser> getUsers() {
+  public List<WeixinUser> getUsers() throws MpException {
     return getUsers(Integer.MAX_VALUE);
   }
 
   /**
    * 获取指定数量的用户
+   * 
+   * @throws MpException
    */
-  public List<WeixinUser> getUsers(int size) {
+  public List<WeixinUser> getUsers(int size) throws MpException {
     preCheck();
     List<WeixinUser> result = new ArrayList<WeixinUser>();
     GetMethod get = new GetMethod(MP_URI_USERS + "&pagesize=" + size + "&token=" + token);
@@ -369,95 +469,7 @@ public class WeixinMP {
     }
   }
 
-  public List<WeixinMessage> getMessage(Integer day, Integer count, Integer offset) {
-    List<WeixinMessage> result = new ArrayList<WeixinMessage>();
-    PostMethod post = new PostMethod(MP_URI_GET_MESSAGE);
-    addCommonHeader(post);
-    addAjaxHeader(post);
-    addFormHeader(post);
-    post.addRequestHeader("Referer", MP_URI
-        + "/cgi-bin/filemanagepage?t=wxm-file&lang=zh_CN&type=2&pagesize=10&pageidx=0&token="
-        + token);
-    post.addParameter("token", token);
-    post.addParameter("day", day == null ? "0" : day.toString());
-    post.addParameter("count", count == null ? "50" : count.toString());
-    post.addParameter("offset", offset == null ? "0" : offset.toString());
-
-    try {
-      int status = httpClient.executeMethod(post);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
-      }
-      String response = post.getResponseBodyAsString();
-      postCheck(response);
-      JSONArray messages = new JSONArray(response);
-      for (int i = 0; i < messages.length(); i++) {
-        result.add(new WeixinMessage(messages.getJSONObject(i)));
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return result;
-  }
-
-  private WeixinMP(String username, String password) {
-    this.username = username;
-    this.password = password;
-    httpClient = new HttpClient();
-    httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
-    httpClient.getParams().setParameter(HttpMethodParams.USER_AGENT,
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:22.0) Gecko/20100101 Firefox/22.0");
-    httpClient.getParams().setParameter("http.protocol.single-cookie-header", true);
-  }
-
-  private void login() {
-    GetMethod get = new GetMethod(MP_URI);
-    addCommonHeader(get);
-    try {
-      int status = httpClient.executeMethod(get);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + get.getResponseBodyAsString());
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-      return;
-    }
-
-    PostMethod post = new PostMethod(MP_URI_LOGIN);
-    addCommonHeader(post);
-    addAjaxHeader(post);
-    addFormHeader(post);
-    post.addRequestHeader("Referer", MP_URI);
-    post.addRequestHeader("Accept", "application/json, text/javascript, */*; q=0.01");
-    post.addParameter("username", username);
-    post.addParameter("pwd", DigestUtils.md5Hex(password));
-    post.addParameter("imgcode", "");
-    post.addParameter("f", "json");
-    try {
-      int status = httpClient.executeMethod(post);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + get.getResponseBodyAsString());
-      }
-
-      String html = post.getResponseBodyAsString();
-      JSONObject result = new JSONObject(html);
-      if (result.getInt("Ret") == 302) {
-        String tokenUrl = result.getString("ErrMsg");
-        token = tokenUrl.substring(tokenUrl.lastIndexOf("&") + 7);
-        tokenTime = System.currentTimeMillis();
-      } else if (result.getInt("Ret") == 400) {
-        if (result.getInt("ErrCode") == -3) {
-          // 您输入的帐号或者密码不正确，请重新输入。
-        } else if (result.getInt("ErrCode") == -4) {
-          // 不存在该帐户
-        }
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-  }
-
-  private void preCheck() {
+  private void preCheck() throws MpException {
     if (token == null || (System.currentTimeMillis() - tokenTime) > 600000) {
       login();
     }
@@ -481,16 +493,6 @@ public class WeixinMP {
 
   private void addFormHeader(HttpMethod request) {
     request.addRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
-  }
-
-  public static WeixinMP init(String username, String password) {
-    if (!MP.containsKey(username)) {
-      WeixinMP mp = new WeixinMP(username, password);
-      mp.login();
-      MP.put(username, mp);
-    }
-
-    return MP.get(username);
   }
 
 }

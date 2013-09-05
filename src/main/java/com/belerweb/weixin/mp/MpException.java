@@ -10,6 +10,7 @@ public class MpException extends Exception {
 
   private int errcode = DEFAULT_CODE;
   private String errmsg;
+  private Object obj;
 
   public MpException(String errormsg) {
     this.errmsg = errormsg;
@@ -21,6 +22,7 @@ public class MpException extends Exception {
   }
 
   public MpException(JSONObject json) {
+    this.obj = json;
     this.errcode = json.optInt("errcode", -2);
     this.errmsg = json.optString("errmsg");
   }
@@ -41,6 +43,10 @@ public class MpException extends Exception {
 
   public String getErrmsg() {
     return errmsg;
+  }
+
+  public Object getObj() {
+    return obj;
   }
 
 }

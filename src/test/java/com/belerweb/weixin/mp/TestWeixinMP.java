@@ -46,7 +46,19 @@ public class TestWeixinMP {
   }
 
   @Test
-  public void testGetUser() {
+  public void testGetMessage() throws MpException {
+    WeixinMP mp = WeixinMP.init(username, password);
+    List<WeixinMessage> messages = mp.getMessage(0, 20);
+    for (WeixinMessage message : messages) {
+      System.out.println("ID:" + message.getId());
+      System.out.println("Type:" + message.getType());
+      System.out.println("Date:" + message.getDateTime());
+      System.out.println("Content:" + message.getContent());
+    }
+  }
+
+  @Test
+  public void testGetUser() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
     List<WeixinUser> users = mp.getUsers();
     for (WeixinUser user : users) {
@@ -64,25 +76,25 @@ public class TestWeixinMP {
   }
 
   @Test
-  public void testAddGroup() {
+  public void testAddGroup() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
     mp.addGroup("测试组");
   }
 
   @Test
-  public void testRenameGroup() {
+  public void testRenameGroup() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
     mp.renameGroup("100", "测试组-修改");
   }
 
   @Test
-  public void testDeleteGroup() {
+  public void testDeleteGroup() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
     mp.deleteGroup("100");
   }
 
   @Test
-  public void testPutIntoGroup() {
+  public void testPutIntoGroup() throws MpException {
     List<String> fakeIds = new ArrayList<String>();
     fakeIds.add("25029755");
     fakeIds.add("24771975");
@@ -92,19 +104,19 @@ public class TestWeixinMP {
   }
 
   @Test
-  public void testSendText() {
+  public void testSendText() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
     mp.sendText("2125943182", "消息来自客户端/酷😭");
   }
 
   @Test
-  public void testUploadImage() {
+  public void testUploadImage() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
     System.out.println("FileID:" + mp.uploadImage(image, "image/png"));
   }
 
   @Test
-  public void testDeleteFile() {
+  public void testDeleteFile() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
     mp.deleteFile("10000002");
   }

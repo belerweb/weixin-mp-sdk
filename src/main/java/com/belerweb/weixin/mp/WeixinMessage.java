@@ -2,88 +2,81 @@ package com.belerweb.weixin.mp;
 
 import java.util.Date;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 public class WeixinMessage {
 
-  private String id;
-  private String type;
-  private String fileId;
-  private String hasReply;
+  private int id;
+  /**
+   * 文本/表情/位置:1
+   * 示例:{"id":0,"type":1,"fakeid":"12345","nick_name":"昵称","date_time":1378288316,"content":"我的位置:<br/>
+   * http://url.cn/","source":"","msg_status":4,"has_reply":0,"refuse_reason":""}
+   * 
+   * 图片:2 示例:{"id":0,"type":2,"fakeid":"12345","nick_name":"昵称","date_time":1378288257,"source":"",
+   * "msg_status":4,"has_reply":0,"refuse_reason":""}
+   * 
+   * 声音:3
+   * 示例:{"id":0,"type":3,"fakeid":"12345","nick_name":"昵称","date_time":1378288228,"play_length":
+   * 1859,"length":1092,"source":"","msg_status":4,"has_reply":0,"refuse_reason":""}
+   * 
+   * 视频:4
+   * 示例:{"id":0,"type":4,"fakeid":"12345","nick_name":"昵称","date_time":1378288286,"play_length":
+   * 1,"length":6983,"source":"","msg_status":4,"has_reply":0,"refuse_reason":""}
+   */
+  private int type;
+
   private String fakeId;
   private String nickName;
-  private String remarkName;
   private Date dateTime;
-  private String icon;
-  private String content;
-  private String playLength;
-  private String length;
   private String source;
-  private String starred;
-  private String status;
-  private String subtype;
-  private String showType;
-  private String desc;
-  private String title;
-  private String appName;
-  private String contentUrl;
+  private int msgStatus;
+  private boolean hasReply;
+  private String refuseReason;
 
-  public WeixinMessage() {}
+  // 2
+  private String content;
 
-  public WeixinMessage(JSONObject json) {
-    this.id = json.optString("id");
-    this.type = json.optString("type");
-    this.fileId = json.optString("fileId");
-    this.hasReply = json.optString("hasReply");
-    this.fakeId = json.optString("fakeId");
-    this.nickName = json.optString("nickName");
-    this.remarkName = json.optString("remarkName");
-    this.dateTime = new Date(json.optLong("dateTime"));
-    this.icon = json.optString("icon");
-    this.content = json.optString("content");
-    this.playLength = json.optString("playLength");
-    this.length = json.optString("length");
-    this.source = json.optString("source");
-    this.starred = json.optString("starred");
-    this.status = json.optString("status");
-    this.subtype = json.optString("subtype");
-    this.showType = json.optString("showType");
-    this.desc = json.optString("desc");
-    this.title = json.optString("title");
-    this.appName = json.optString("appName");
-    this.contentUrl = json.optString("contentUrl");
+  // 3/4
+  private int playLength;
+  private int length;
+
+  public WeixinMessage() {
+
   }
 
-  public String getId() {
+  public WeixinMessage(JSONObject json) throws MpException {
+    try {
+      this.id = json.getInt("id");
+      this.type = json.getInt("type");
+      this.fakeId = json.getString("fakeid");
+      this.nickName = json.getString("nick_name");
+      this.dateTime = new Date(json.getLong("date_time") * 1000);
+      this.source = json.optString("source");
+      this.msgStatus = json.getInt("msg_status");
+      this.hasReply = json.getInt("has_reply") == 1;
+      this.content = json.optString("content");
+      this.playLength = json.optInt("play_length");
+      this.length = json.optInt("length");
+    } catch (JSONException e) {
+      throw new MpException(json);
+    }
+  }
+
+  public int getId() {
     return id;
   }
 
-  public void setId(String id) {
+  public void setId(int id) {
     this.id = id;
   }
 
-  public String getType() {
+  public int getType() {
     return type;
   }
 
-  public void setType(String type) {
+  public void setType(int type) {
     this.type = type;
-  }
-
-  public String getFileId() {
-    return fileId;
-  }
-
-  public void setFileId(String fileId) {
-    this.fileId = fileId;
-  }
-
-  public String getHasReply() {
-    return hasReply;
-  }
-
-  public void setHasReply(String hasReply) {
-    this.hasReply = hasReply;
   }
 
   public String getFakeId() {
@@ -102,52 +95,12 @@ public class WeixinMessage {
     this.nickName = nickName;
   }
 
-  public String getRemarkName() {
-    return remarkName;
-  }
-
-  public void setRemarkName(String remarkName) {
-    this.remarkName = remarkName;
-  }
-
   public Date getDateTime() {
     return dateTime;
   }
 
   public void setDateTime(Date dateTime) {
     this.dateTime = dateTime;
-  }
-
-  public String getIcon() {
-    return icon;
-  }
-
-  public void setIcon(String icon) {
-    this.icon = icon;
-  }
-
-  public String getContent() {
-    return content;
-  }
-
-  public void setContent(String content) {
-    this.content = content;
-  }
-
-  public String getPlayLength() {
-    return playLength;
-  }
-
-  public void setPlayLength(String playLength) {
-    this.playLength = playLength;
-  }
-
-  public String getLength() {
-    return length;
-  }
-
-  public void setLength(String length) {
-    this.length = length;
   }
 
   public String getSource() {
@@ -158,68 +111,52 @@ public class WeixinMessage {
     this.source = source;
   }
 
-  public String getStarred() {
-    return starred;
+  public int getMsgStatus() {
+    return msgStatus;
   }
 
-  public void setStarred(String starred) {
-    this.starred = starred;
+  public void setMsgStatus(int msgStatus) {
+    this.msgStatus = msgStatus;
   }
 
-  public String getStatus() {
-    return status;
+  public boolean isHasReply() {
+    return hasReply;
   }
 
-  public void setStatus(String status) {
-    this.status = status;
+  public void setHasReply(boolean hasReply) {
+    this.hasReply = hasReply;
   }
 
-  public String getSubtype() {
-    return subtype;
+  public String getRefuseReason() {
+    return refuseReason;
   }
 
-  public void setSubtype(String subtype) {
-    this.subtype = subtype;
+  public void setRefuseReason(String refuseReason) {
+    this.refuseReason = refuseReason;
   }
 
-  public String getShowType() {
-    return showType;
+  public String getContent() {
+    return content;
   }
 
-  public void setShowType(String showType) {
-    this.showType = showType;
+  public void setContent(String content) {
+    this.content = content;
   }
 
-  public String getDesc() {
-    return desc;
+  public int getPlayLength() {
+    return playLength;
   }
 
-  public void setDesc(String desc) {
-    this.desc = desc;
+  public void setPlayLength(int playLength) {
+    this.playLength = playLength;
   }
 
-  public String getTitle() {
-    return title;
+  public int getLength() {
+    return length;
   }
 
-  public void setTitle(String title) {
-    this.title = title;
-  }
-
-  public String getAppName() {
-    return appName;
-  }
-
-  public void setAppName(String appName) {
-    this.appName = appName;
-  }
-
-  public String getContentUrl() {
-    return contentUrl;
-  }
-
-  public void setContentUrl(String contentUrl) {
-    this.contentUrl = contentUrl;
+  public void setLength(int length) {
+    this.length = length;
   }
 
 }
