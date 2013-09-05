@@ -605,4 +605,16 @@ public class TestWeixinMP {
     WeixinMP mp = WeixinMP.init(username, password);
     Assert.assertTrue(mp.sendImage("2125943182", WeixinMP.IMAGE_JPG, image));
   }
+
+  @Test
+  public void testAddImageText() throws Exception {
+    WeixinMP mp = WeixinMP.init(username, password);
+    Assert.assertTrue(mp.addImageText("Title", "Author", 0, "digest", "content", null));
+  }
+
+  @Test
+  public void testSendImageText() throws Exception {
+    WeixinMP mp = WeixinMP.init(username, password);
+    Assert.assertTrue(mp.sendImageText("2125943182", 10000016));
+  }
 }

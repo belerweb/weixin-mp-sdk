@@ -326,6 +326,74 @@ public class WeixinMP {
     return result;
   }
 
+  public boolean sendImageText(String fakeId, int appMsgId) throws MpException {
+    checkToken();
+    String url = "https://mp.weixin.qq.com/cgi-bin/singlesend";
+    PostMethod request = new PostMethod(url);
+    request.addRequestHeader("Referer", "https://mp.weixin.qq.com/cgi-bin/singlemsgpage");
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-response");
+    request.addParameter("error", "false");
+    request.addParameter("imgcode", "");
+    request.addParameter("ajax", "1");
+    request.addParameter("type", "10");// 图文
+    request.addParameter("tofakeid", fakeId);
+    request.addParameter("fid", String.valueOf(appMsgId));
+    request.addParameter("appmsgid", String.valueOf(appMsgId));
+    return toJsonObject(execute(request)).optInt("ret", -1) == 0;
+  }
+
+  /**
+   * 增加单图文信息
+   */
+  public boolean addImageText(String title, String author, int fileId, String digest,
+      String content, String source) throws MpException {
+    return editImageText(null, title, author, fileId, digest, content, source);
+  }
+
+  /**
+   * 编辑图文信息
+   */
+  public boolean editImageText(Integer appMsgId, String title, String author, int fileId,
+      String digest, String content, String source) throws MpException {
+    checkToken();
+    String url = "https://mp.weixin.qq.com/cgi-bin/operate_appmsg";
+    PostMethod request = new PostMethod(url);
+    // request.setRequestHeader("Referer", "https://mp.weixin.qq.com/cgi-bin/operate_appmsg");
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-response");
+    request.addParameter("error", "false");
+    request.addParameter("ajax", "1");
+    request.addParameter("sub", "create");
+    request.addParameter("count", "1");
+    request.addParameter("AppMsgId", appMsgId == null ? "" : String.valueOf(appMsgId));
+    request.addParameter("title0", title);
+    request.addParameter("author0", author == null ? "" : author);
+    request.addParameter("fileid0", String.valueOf(fileId));// 大图片建议尺寸：720像素 * 400像素封面
+    request.addParameter("author0", author == null ? "" : author);
+    request.addParameter("digest0", digest == null ? "" : digest);
+    request.addParameter("content0", content);
+    request.addParameter("sourceurl0", source == null ? "" : source);
+    return toJsonObject(execute(request)).optInt("ret", -1) == 0;
+  }
+
+  /**
+   * 删除图文
+   */
+  public boolean deleteImageText(int appMsgId) throws MpException {
+    String url = "https://mp.weixin.qq.com/cgi-bin/operate_appmsg";
+    PostMethod request = new PostMethod(url);
+    request.addParameter("token", token);
+    // request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-response");
+    request.addParameter("ajax", "1");
+    request.addParameter("sub", "del");
+    request.addParameter("AppMsgId", String.valueOf(appMsgId));
+    return toJsonObject(execute(request)).optInt("ret", -1) == 0;
+  }
+
   /**
    * 上传图片
    */
