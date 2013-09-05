@@ -101,6 +101,15 @@ public class WeixinMP {
   }
 
   /**
+   * 检查Token是否过期
+   */
+  private void checkToken() throws MpException {
+    if (token == null || (System.currentTimeMillis() - tokenTime) > 600000) {
+      login();
+    }
+  }
+
+  /**
    * 登录
    */
   private void login() throws MpException {
@@ -142,6 +151,7 @@ public class WeixinMP {
    * 实时消息：全部消息
    */
   public List<WeixinMessage> getMessage(int offset, int count) throws MpException {
+    checkToken();
     String url = "https://mp.weixin.qq.com/cgi-bin/message";
     GetMethod request = new GetMethod(url);
     NameValuePair[] params = new NameValuePair[5];
@@ -173,6 +183,7 @@ public class WeixinMP {
    * 用户列表
    */
   public List<WeixinUser> getUser(int groupId, int pageidx, int pagesize) throws MpException {
+    checkToken();
     String url = "https://mp.weixin.qq.com/cgi-bin/contactmanage";
     GetMethod request = new GetMethod(url);
     NameValuePair[] params = new NameValuePair[6];
@@ -205,6 +216,7 @@ public class WeixinMP {
    * 通过FakeId获取指定用户信息
    */
   public WeixinUser getUser(String fakeId) throws MpException {
+    checkToken();
     String url = "https://mp.weixin.qq.com/cgi-bin/getcontactinfo";
     PostMethod request = new PostMethod(url);
     request.addParameter("token", token);
@@ -435,12 +447,6 @@ public class WeixinMP {
     }
   }
 
-  private void preCheck() throws MpException {
-    if (token == null || (System.currentTimeMillis() - tokenTime) > 600000) {
-      login();
-    }
-  }
-
   private void postCheck(String response) {
     if (response.contains("登录超时") || response.contains("\"ret\":\"-20000\"")) {
       token = null;
@@ -449,7 +455,7 @@ public class WeixinMP {
   }
 
   private void addCommonHeader(HttpMethod request) {
-    request.addRequestHeader("Accept-Language", "zh-cn;q=0.5");
+    request.addRequestHeader("Acnguage", "zh-cn;q=0.5");
     // request.addRequestHeader("Accept-Encoding", "gzip, deflate");
   }
 
