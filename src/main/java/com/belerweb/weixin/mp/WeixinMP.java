@@ -40,10 +40,6 @@ public class WeixinMP {
   private static final Map<String, WeixinMP> MP = new HashMap<String, WeixinMP>();
   private static final String MP_URI = "https://mp.weixin.qq.com";
   private static final String MP_URI_TOKEN = "https://api.weixin.qq.com/cgi-bin/token";
-  private static final String MP_URI_USERS =
-      MP_URI + "/cgi-bin/contactmanagepage?t=wxm-friend&lang=zh_CN&pageidx=0&type=0&groupid=0";
-  private static final String MP_URI_GROUP =
-      MP_URI + "/cgi-bin/modifygroup?t=ajax-friend-group&lang=zh_CN";
   private static final String MP_URI_SEND =
       MP_URI + "/cgi-bin/singlesend?t=ajax-response&lang=zh_CN";
   private static final String MP_URI_UPLOAD =
@@ -243,6 +239,51 @@ public class WeixinMP {
     return "0".equals(toJsonObject(execute(request)).optString("ret"));
   }
 
+  /**
+   * 增加分组
+   */
+  public boolean addGroup(String name) throws MpException {
+    String url = "https://mp.weixin.qq.com/cgi-bin/modifygroup";
+    PostMethod request = new PostMethod(url);
+    request.addRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-friend-group");
+    request.addParameter("func", "add");
+    request.addParameter("name", name);
+    return toJsonObject(execute(request)).optString("GroupId", null) != null;
+  }
+
+  /**
+   * 修改组名
+   */
+  public boolean renameGroup(int groupId, String name) throws MpException {
+    String url = "https://mp.weixin.qq.com/cgi-bin/modifygroup";
+    PostMethod request = new PostMethod(url);
+    request.addRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-friend-group");
+    request.addParameter("func", "rename");
+    request.addParameter("id", String.valueOf(groupId));
+    request.addParameter("name", name);
+    return toJsonObject(execute(request)).optString("GroupId", null) != null;
+  }
+
+  /**
+   * 删除分组
+   */
+  public boolean deleteGroup(int groupId) throws MpException {
+    String url = "https://mp.weixin.qq.com/cgi-bin/modifygroup";
+    PostMethod request = new PostMethod(url);
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-friend-group");
+    request.addParameter("func", "del");
+    request.addParameter("id", String.valueOf(groupId));
+    return toJsonObject(execute(request)).optString("GroupId", null) != null;
+  }
+
   private String execute(HttpMethod request) throws MpException {
     request.addRequestHeader("Pragma", "no-cache");
     request.addRequestHeader("Referer", "https://mp.weixin.qq.com/");
@@ -266,73 +307,6 @@ public class WeixinMP {
       return new JSONObject(json);
     } catch (JSONException e) {
       throw new MpException(e);
-    }
-  }
-
-  /**
-   * 增加分组
-   */
-  public String addGroup(String groupName) {
-    return editGroup("add", null, groupName);
-  }
-
-  /**
-   * 分组重命名
-   */
-  public String renameGroup(String groupId, String groupName) {
-    return editGroup("rename", groupId, groupName);
-  }
-
-  private String editGroup(String action, String groupId, String groupName) {
-    PostMethod post = new PostMethod(MP_URI_GROUP);
-    addCommonHeader(post);
-    addAjaxHeader(post);
-    addFormHeader(post);
-    post.addRequestHeader("Referer", MP_URI_USERS + "&pagesize=10&token=" + token);
-    post.addParameter("ajax", "1");
-    post.addParameter("token", token);
-    post.addParameter("func", action);
-    post.addParameter("name", groupName);
-    if (groupId != null) {
-      post.addParameter("id", groupId);
-    }
-
-    try {
-      int status = httpClient.executeMethod(post);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
-      }
-      String response = post.getResponseBodyAsString();
-      postCheck(response);
-      return new JSONObject(response).getString("GroupId");
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
-  }
-
-  /**
-   * 删除分组
-   */
-  public void deleteGroup(String groupId) {
-    PostMethod post = new PostMethod(MP_URI_GROUP);
-    addCommonHeader(post);
-    addAjaxHeader(post);
-    addFormHeader(post);
-    post.addRequestHeader("Referer", MP_URI_USERS + "&pagesize=10&token=" + token);
-    post.addParameter("ajax", "1");
-    post.addParameter("token", token);
-    post.addParameter("func", "del");
-    post.addParameter("id", groupId);
-
-    try {
-      int status = httpClient.executeMethod(post);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
-      }
-      postCheck(post.getResponseBodyAsString());
-    } catch (Exception e) {
-      e.printStackTrace();
     }
   }
 

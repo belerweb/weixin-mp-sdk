@@ -113,13 +113,13 @@ public class TestWeixinMP {
   @Test
   public void testRenameGroup() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
-    mp.renameGroup("100", "测试组-修改");
+    mp.renameGroup(100, "测试组-修改");
   }
 
   @Test
   public void testDeleteGroup() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
-    mp.deleteGroup("100");
+    mp.deleteGroup(100);
   }
 
   @Test
