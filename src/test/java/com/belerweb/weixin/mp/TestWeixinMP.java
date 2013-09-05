@@ -54,13 +54,14 @@ public class TestWeixinMP {
       System.out.println("Type:" + message.getType());
       System.out.println("Date:" + message.getDateTime());
       System.out.println("Content:" + message.getContent());
+      System.out.println("=======================================");
     }
   }
 
   @Test
-  public void testGetUser() throws MpException {
+  public void testGetUser1() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
-    List<WeixinUser> users = mp.getUsers();
+    List<WeixinUser> users = mp.getUser(0, 0, 10);
     for (WeixinUser user : users) {
       System.out.println("FakeId:" + user.getFakeid());
       System.out.println("NickName:" + user.getNickname());
@@ -71,8 +72,26 @@ public class TestWeixinMP {
       System.out.println("Province:" + user.getProvince());
       System.out.println("City:" + user.getCity());
       System.out.println("Sex:" + user.getSex());
+      System.out.println("GroupId:" + user.getGroupId());
       System.out.println("=======================================");
     }
+  }
+
+  @Test
+  public void testGetUser2() throws MpException {
+    WeixinMP mp = WeixinMP.init(username, password);
+    WeixinUser user = mp.getUser("877915902");
+    System.out.println("FakeId:" + user.getFakeid());
+    System.out.println("NickName:" + user.getNickname());
+    System.out.println("ReMarkName:" + user.getReMarkName());
+    System.out.println("Username:" + user.getUsername());
+    System.out.println("Signature:" + user.getSignature());
+    System.out.println("Country:" + user.getCountry());
+    System.out.println("Province:" + user.getProvince());
+    System.out.println("City:" + user.getCity());
+    System.out.println("Sex:" + user.getSex());
+    System.out.println("GroupId:" + user.getGroupId());
+    System.out.println("=======================================");
   }
 
   @Test

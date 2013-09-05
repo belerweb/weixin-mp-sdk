@@ -1,5 +1,6 @@
 package com.belerweb.weixin.mp;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 public class WeixinUser {
@@ -14,19 +15,33 @@ public class WeixinUser {
   private String province;
   private String city;
   private String sex;
+  private int groupId;
 
   public WeixinUser() {}
 
-  public WeixinUser(JSONObject json) {
-    this.fakeid = json.optString("FakeId");
-    this.nickname = json.optString("NickName");
-    this.reMarkName = json.optString("ReMarkName");
-    this.username = json.optString("Username");
-    this.signature = json.optString("Signature");
-    this.country = json.optString("Country");
-    this.province = json.optString("Province");
-    this.city = json.optString("City");
-    this.sex = json.optString("Sex");
+  public WeixinUser(JSONObject json) throws MpException {
+    try {
+      if (json.optString("id", null) != null) {
+        this.fakeid = json.getString("id");
+        this.nickname = json.getString("nick_name");
+        this.reMarkName = json.getString("remark_name");
+        this.groupId = json.getInt("group_id");
+      } else {
+
+        this.fakeid = json.getString("FakeId");
+        this.nickname = json.getString("NickName");
+        this.reMarkName = json.getString("ReMarkName");
+        this.username = json.getString("Username");
+        this.signature = json.getString("Signature");
+        this.country = json.getString("Country");
+        this.province = json.getString("Province");
+        this.city = json.getString("City");
+        this.sex = json.getString("Sex");
+        this.groupId = json.getInt("GroupID");
+      }
+    } catch (JSONException e) {
+      throw new MpException(e);
+    }
   }
 
   public String getOpenid() {
@@ -107,6 +122,14 @@ public class WeixinUser {
 
   public void setSex(String sex) {
     this.sex = sex;
+  }
+
+  public int getGroupId() {
+    return groupId;
+  }
+
+  public void setGroupId(int groupId) {
+    this.groupId = groupId;
   }
 
 }

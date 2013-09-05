@@ -23,7 +23,6 @@ import org.apache.commons.httpclient.methods.multipart.Part;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.jsoup.Jsoup;
 import org.jsoup.helper.StringUtil;
 
 /**
@@ -39,9 +38,6 @@ public class WeixinMP {
   private static final String MP_URI_TOKEN = "https://api.weixin.qq.com/cgi-bin/token";
   private static final String MP_URI_USERS =
       MP_URI + "/cgi-bin/contactmanagepage?t=wxm-friend&lang=zh_CN&pageidx=0&type=0&groupid=0";
-  private static final String MP_URI_INDEX = MP_URI + "/cgi-bin/indexpage?t=wxm-index&lang=zh_CN";
-  private static final String MP_URI_INFO =
-      MP_URI + "/cgi-bin/getcontactinfo?t=ajax-getcontactinfo&lang=zh_CN";
   private static final String MP_URI_GROUP =
       MP_URI + "/cgi-bin/modifygroup?t=ajax-friend-group&lang=zh_CN";
   private static final String MP_URI_PUTINTO_GROUP =
@@ -144,8 +140,6 @@ public class WeixinMP {
 
   /**
    * 实时消息：全部消息
-   * 
-   * @return
    */
   public List<WeixinMessage> getMessage(int offset, int count) throws MpException {
     String url = "https://mp.weixin.qq.com/cgi-bin/message";
@@ -175,6 +169,51 @@ public class WeixinMP {
     return messages;
   }
 
+  /**
+   * 用户列表
+   */
+  public List<WeixinUser> getUser(int groupId, int pageidx, int pagesize) throws MpException {
+    String url = "https://mp.weixin.qq.com/cgi-bin/contactmanage";
+    GetMethod request = new GetMethod(url);
+    NameValuePair[] params = new NameValuePair[6];
+    params[0] = new NameValuePair("token", token);
+    params[1] = new NameValuePair("lang", "zh_CN");
+    params[2] = new NameValuePair("type", "0");
+    params[3] = new NameValuePair("groupid", String.valueOf(groupId));
+    params[4] = new NameValuePair("pageidx", String.valueOf(pageidx));
+    params[5] = new NameValuePair("pagesize", String.valueOf(pagesize));
+    request.setQueryString(params);
+    List<WeixinUser> users = new ArrayList<WeixinUser>();
+    for (String line : execute(request).split("[\r\n]+")) {
+      line = line.trim();
+      if (line.startsWith("friendsList : ({\"contacts\":") && line.endsWith("}).contacts,")) {
+        try {
+          JSONArray array = new JSONArray(line.substring(27, line.length() - 12));
+          for (int i = 0; i < array.length(); i++) {
+            users.add(new WeixinUser(array.getJSONObject(i)));
+          }
+        } catch (JSONException e) {
+          throw new MpException(e);
+        }
+        break;
+      }
+    }
+    return users;
+  }
+
+  /**
+   * 通过FakeId获取指定用户信息
+   */
+  public WeixinUser getUser(String fakeId) throws MpException {
+    String url = "https://mp.weixin.qq.com/cgi-bin/getcontactinfo";
+    PostMethod request = new PostMethod(url);
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-getcontactinfo");
+    request.addParameter("fakeid", fakeId);
+    return new WeixinUser(toJsonObject(execute(request)));
+  }
+
   private String execute(HttpMethod request) throws MpException {
     request.addRequestHeader("Pragma", "no-cache");
     request.addRequestHeader("Referer", "https://mp.weixin.qq.com/");
@@ -199,79 +238,6 @@ public class WeixinMP {
     } catch (JSONException e) {
       throw new MpException(e);
     }
-  }
-
-  /**
-   * 获取 Integer.MAX_VALUE 用户
-   * 
-   * @throws MpException
-   */
-  public List<WeixinUser> getUsers() throws MpException {
-    return getUsers(Integer.MAX_VALUE);
-  }
-
-  /**
-   * 获取指定数量的用户
-   * 
-   * @throws MpException
-   */
-  public List<WeixinUser> getUsers(int size) throws MpException {
-    preCheck();
-    List<WeixinUser> result = new ArrayList<WeixinUser>();
-    GetMethod get = new GetMethod(MP_URI_USERS + "&pagesize=" + size + "&token=" + token);
-    addCommonHeader(get);
-    get.addRequestHeader("Referer", MP_URI_INDEX + "&token=" + token);
-    get.addRequestHeader("Accept",
-        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-    try {
-      int status = httpClient.executeMethod(get);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + get.getResponseBodyAsString());
-      }
-      String response = get.getResponseBodyAsString();
-      postCheck(response);
-      JSONArray users =
-          new JSONArray(Jsoup.parse(response).getElementById("json-friendList").html());
-      for (int i = 0; i < users.length(); i++) {
-        String fakeId = users.getJSONObject(i).getString("fakeId");
-        WeixinUser user = getUser(fakeId);
-        if (user == null) {
-          // TODO
-        } else {
-          result.add(user);
-        }
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return result;
-  }
-
-  /**
-   * 通过fakeId获取用户
-   */
-  public WeixinUser getUser(String fakeId) {
-    PostMethod post = new PostMethod(MP_URI_INFO + "&fakeid=" + fakeId);
-    addCommonHeader(post);
-    addAjaxHeader(post);
-    addFormHeader(post);
-    post.addRequestHeader("Referer", MP_URI_USERS + "&pagesize=10&token=" + token);
-    post.addParameter("ajax", "1");
-    post.addParameter("token", token);
-
-    try {
-      int status = httpClient.executeMethod(post);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
-      }
-      String response = post.getResponseBodyAsString();
-      postCheck(response);
-      return new WeixinUser(new JSONObject(response));
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-
-    return null;
   }
 
   /**
