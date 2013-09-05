@@ -33,6 +33,10 @@ public class WeixinMP {
   public static final String CONFIG_USERNAME = "weixin.mp.username";
   public static final String CONFIG_PASSWORD = "weixin.mp.password";
 
+  public static final int GROUP_DEFAULT = 0;// 未分组
+  public static final int GROUP_BLACKLIST = 1;// 黑名单
+  public static final int GROUP_ASTERISK = 2;// 星标组
+
   private static final Map<String, WeixinMP> MP = new HashMap<String, WeixinMP>();
   private static final String MP_URI = "https://mp.weixin.qq.com";
   private static final String MP_URI_TOKEN = "https://api.weixin.qq.com/cgi-bin/token";
@@ -40,8 +44,6 @@ public class WeixinMP {
       MP_URI + "/cgi-bin/contactmanagepage?t=wxm-friend&lang=zh_CN&pageidx=0&type=0&groupid=0";
   private static final String MP_URI_GROUP =
       MP_URI + "/cgi-bin/modifygroup?t=ajax-friend-group&lang=zh_CN";
-  private static final String MP_URI_PUTINTO_GROUP =
-      MP_URI + "/cgi-bin/modifycontacts?action=modifycontacts&t=ajax-putinto-group";
   private static final String MP_URI_SEND =
       MP_URI + "/cgi-bin/singlesend?t=ajax-response&lang=zh_CN";
   private static final String MP_URI_UPLOAD =
@@ -226,6 +228,21 @@ public class WeixinMP {
     return new WeixinUser(toJsonObject(execute(request)));
   }
 
+  /**
+   * 将用户放入某个组内
+   */
+  public boolean putIntoGroup(List<String> fakeIds, int groupId) throws MpException {
+    String url = "https://mp.weixin.qq.com/cgi-bin/modifycontacts";
+    PostMethod request = new PostMethod(url);
+    request.addParameter("token", token);
+    request.addParameter("lang", "zh_CN");
+    request.addParameter("t", "ajax-putinto-group");
+    request.addParameter("action", "modifycontacts");
+    request.addParameter("tofakeidlist", StringUtil.join(fakeIds, "|"));
+    request.addParameter("contacttype", String.valueOf(groupId));
+    return "0".equals(toJsonObject(execute(request)).optString("ret"));
+  }
+
   private String execute(HttpMethod request) throws MpException {
     request.addRequestHeader("Pragma", "no-cache");
     request.addRequestHeader("Referer", "https://mp.weixin.qq.com/");
@@ -307,28 +324,6 @@ public class WeixinMP {
     post.addParameter("token", token);
     post.addParameter("func", "del");
     post.addParameter("id", groupId);
-
-    try {
-      int status = httpClient.executeMethod(post);
-      if (status != 200) {
-        throw new RuntimeException("Status:" + status + "\n" + post.getResponseBodyAsString());
-      }
-      postCheck(post.getResponseBodyAsString());
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-  }
-
-  public void putIntoGroup(List<String> fakeIds, String groupId) {
-    PostMethod post = new PostMethod(MP_URI_PUTINTO_GROUP);
-    addCommonHeader(post);
-    addAjaxHeader(post);
-    addFormHeader(post);
-    post.addRequestHeader("Referer", MP_URI_USERS + "&pagesize=10&token=" + token);
-    post.addParameter("ajax", "1");
-    post.addParameter("token", token);
-    post.addParameter("contacttype", groupId);
-    post.addParameter("tofakeidlist", StringUtil.join(fakeIds, "|"));
 
     try {
       int status = httpClient.executeMethod(post);

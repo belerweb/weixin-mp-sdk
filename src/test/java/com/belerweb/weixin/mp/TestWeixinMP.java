@@ -95,6 +95,16 @@ public class TestWeixinMP {
   }
 
   @Test
+  public void testPutIntoGroup() throws MpException {
+    List<String> fakeIds = new ArrayList<String>();
+    fakeIds.add("25029755");
+    fakeIds.add("24771975");
+    fakeIds.add("2125943182");
+    WeixinMP mp = WeixinMP.init(username, password);
+    mp.putIntoGroup(fakeIds, WeixinMP.GROUP_ASTERISK);
+  }
+
+  @Test
   public void testAddGroup() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
     mp.addGroup("测试组");
@@ -110,16 +120,6 @@ public class TestWeixinMP {
   public void testDeleteGroup() throws MpException {
     WeixinMP mp = WeixinMP.init(username, password);
     mp.deleteGroup("100");
-  }
-
-  @Test
-  public void testPutIntoGroup() throws MpException {
-    List<String> fakeIds = new ArrayList<String>();
-    fakeIds.add("25029755");
-    fakeIds.add("24771975");
-    fakeIds.add("2125943182");
-    WeixinMP mp = WeixinMP.init(username, password);
-    mp.putIntoGroup(fakeIds, "2");
   }
 
   @Test
